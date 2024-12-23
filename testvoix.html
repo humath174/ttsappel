@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistant Vocal</title>
+</head>
+<body>
+    <h1>Posez une question</h1>
+    <button id="startButton">🎙️ Parlez</button>
+    <p><strong>Réponse :</strong> <span id="response">En attente...</span></p>
+    
+    <script>
+        const startButton = document.getElementById('startButton');
+        const responseElement = document.getElementById('response');
+
+        // Vérifier la disponibilité de la reconnaissance vocale
+        if ('webkitSpeechRecognition' in window) {
+            const recognition = new webkitSpeechRecognition();
+            recognition.lang = 'fr-FR';
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                console.log('Écoute en cours...');
+                responseElement.textContent = 'Écoute en cours...';
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Erreur de reconnaissance :', event.error);
+                responseElement.textContent = 'Erreur de reconnaissance.';
+            };
+
+            recognition.onresult = (event) => {
+                const question = event.results[0][0].transcript;
+                console.log('Question détectée :', question);
+                sendToAPI(question);
+            };
+
+            startButton.onclick = () => {
+                recognition.start();
+            };
+
+        } else {
+            alert("La reconnaissance vocale n'est pas supportée par votre navigateur.");
+        }
+
+        // Fonction pour envoyer la question à l'API en utilisant FormData
+        async function sendToAPI(question) {
+            try {
+                const formData = new FormData();
+                formData.append('Body', question);  // Ajoute le message à la requête
+
+                // Envoi de la requête avec FormData (aucun Content-Type explicite)
+                const response = await fetch('http://82.65.9.69:5000/api/chat', {
+                    method: 'POST',
+                    body: formData  // Utilisation de FormData pour envoyer les données
+                });
+
+                if (!response.ok) {
+                    throw new Error('Erreur réseau avec l\'API');
+                }
+
+                const result = await response.json();  // Si la réponse est en JSON
+                const message = result.response || 'Pas de réponse du serveur.';
+
+                responseElement.textContent = message;
+                speak(message);
+
+            } catch (error) {
+                console.error('Erreur API :', error);
+                responseElement.textContent = 'Erreur API. Vérifiez la console.';
+            }
+        }
+
+        // Lire la réponse à haute voix
+        function speak(text) {
+            const speech = new SpeechSynthesisUtterance(text);
+            speech.lang = 'fr-FR';
+            window.speechSynthesis.speak(speech);
+        }
+    </script>
+</body>
+</html>
